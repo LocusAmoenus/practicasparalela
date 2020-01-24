@@ -11,29 +11,30 @@
 * Funcion que implementa la solvatacion en openmp
 */
 extern void forces_OMP_AU (int atoms_r, int atoms_l, int nlig, float *rec_x, float *rec_y, float *rec_z, float *lig_x, float *lig_y, float *lig_z, float *ql ,float *qr, float *energy, int nconformations){
+		
+	float electro, distancia, total_electro = 0, atomo[3];
+	int totalLig = nconformations * nlig;
 
-  printf(" En el fichero solver_omp.cpp se encuentra la funcion forces_omp_au que se debe implementar con la version OpenMP\n");
-  float dist, total_elec = 0, miatomo[3], elecTerm;
-  int totalAtomLig = nconformations * nlig;
-
-  for (int k=0; k < totalAtomLig; k+=nlig) {
-    for(int i=0;i<atoms_l;i++){
-      miatomo[0] = *(lig_x + k + i);
-      miatomo[1] = *(lig_y + k + i);
-      miatomo[2] = *(lig_z + k + i);
-                      
-        for(int j=0;j<atoms_r;j++){
-          elecTerm = 0;
-          dist=calculaDistancia (rec_x[j], rec_y[j], rec_z[j], miatomo[0], miatomo[1], miatomo[2]);
-          elecTerm = (ql[i]* qr[j]) / dist;
-          total_elec += elecTerm;
-        }
-     }
-     energy[k/nlig] = total_elec;
-     total_elec = 0;
-  }
-  printf("Termino electrostatico %f\n", energy[0]);
+	printf("Utilizando OPENMP con 12 hilos\n");
+	omp_set_num_threads(12);
+	//#pragma omp parallel for schedule(guided) private(electro,distancia,atomo) reduction(+:total_electro)
+	#pragma omp parallel for private(electro,distancia,atomo) reduction(+:total_electro)
+	for (int a=0; a < totalLig; a+=nlig) {
+		for(int b=0;b<atoms_l;b++){
+			atomo[0] = *(lig_x + a + b);
+			atomo[1] = *(lig_y + a + b);
+			atomo[2] = *(lig_z + a + b);
+			for(int c=0;c<atoms_r;c++){
+				electro = 0;
+				distancia=calculaDistancia(rec_x[c], rec_y[c], rec_z[c], atomo[0], atomo[1], atomo[2]);
+				electro = (ql[b]*qr[c])/distancia;
+				total_electro += electro;
+			}
+		}
+		energy[a/nlig] = total_electro;
+		total_electro = 0;
+	}
+	printf("Valor del termino electrostatico %f\n", energy[0]);
 }
-
 
 
